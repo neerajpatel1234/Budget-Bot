@@ -1,0 +1,64 @@
+{
+  "rules": [
+    {
+      "keyword": "4s ozeki limited        te aro",
+      "category": "Eating Out"
+    },
+    {
+      "keyword": "annual card fee",
+      "category": "Bills"
+    },
+    {
+      "keyword": "apple.com/nz            auckland",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "countdown mt cook rd",
+      "category": "Groceries"
+    },
+    {
+      "keyword": "dirty little secret     wellington",
+      "category": "Eating Out"
+    },
+    {
+      "keyword": "number one shoes upper  upper hutt",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "pak n save kilbirnie    wellington",
+      "category": "Groceries"
+    },
+    {
+      "keyword": "rocket mobile           auckland",
+      "category": "Bills"
+    },
+    {
+      "keyword": "sephora new zealand lim auckland",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "t/a pak n save porirua  porirua",
+      "category": "Groceries"
+    },
+    {
+      "keyword": "unity books (wellington wellington",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "wellington airport parking",
+      "category": "Transport"
+    },
+    {
+      "keyword": "wellington city new wor wellington",
+      "category": "Groceries"
+    },
+    {
+      "keyword": "woolworths cable car la wellington",
+      "category": "Groceries"
+    },
+    {
+      "keyword": "www.hurricanes.co.nz    upper hutt",
+      "category": "Entertainment"
+    }
+  ]
+}
