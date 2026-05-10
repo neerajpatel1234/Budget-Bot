@@ -2,23 +2,31 @@
   "rules": [
     {
       "keyword": "4s ozeki limited        te aro",
-      "category": "Eating Out"
+      "category": "Dining / Eating Out"
     },
     {
       "keyword": "annual card fee",
-      "category": "Bills"
+      "category": "Bills & Utilities"
     },
     {
       "keyword": "apple.com/nz            auckland",
       "category": "Shopping"
     },
     {
-      "keyword": "countdown mt cook rd",
-      "category": "Groceries"
+      "keyword": "dirty little secret     wellington",
+      "category": "Dining / Eating Out"
     },
     {
-      "keyword": "dirty little secret     wellington",
-      "category": "Eating Out"
+      "keyword": "embassy theatre         mount victoria",
+      "category": "Entertainment"
+    },
+    {
+      "keyword": "istana malaysia restaur te aro",
+      "category": "Dining / Eating Out"
+    },
+    {
+      "keyword": "little india            wellington",
+      "category": "Dining / Eating Out"
     },
     {
       "keyword": "number one shoes upper  upper hutt",
@@ -29,8 +37,12 @@
       "category": "Groceries"
     },
     {
+      "keyword": "payment - thank you",
+      "category": "Income"
+    },
+    {
       "keyword": "rocket mobile           auckland",
-      "category": "Bills"
+      "category": "Bills & Utilities"
     },
     {
       "keyword": "sephora new zealand lim auckland",
@@ -41,36 +53,52 @@
       "category": "Shopping"
     },
     {
+      "keyword": "spotlight stores (nz) l wellington",
+      "category": "Shopping"
+    },
+    {
       "keyword": "t/a pak n save porirua  porirua",
       "category": "Groceries"
+    },
+    {
+      "keyword": "thewarehouselowerhutt t wellington",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "thewarehouseporirua the wellington",
+      "category": "Shopping"
+    },
+    {
+      "keyword": "thewarehouseupperhutt t upper hutt",
+      "category": "Shopping"
     },
     {
       "keyword": "unity books (wellington wellington",
       "category": "Shopping"
     },
     {
-      "keyword": "wellington airport parking",
-      "category": "Transport"
-    },
-    {
       "keyword": "wellington city new wor wellington",
       "category": "Groceries"
     },
     {
+      "keyword": "whitcoulls whitcoulls   wellington",
+      "category": "Shopping"
+    },
+    {
       "keyword": "windcave*barrel 2 bottl wellington",
-      "category": "Eating Out"
+      "category": "Dining / Eating Out"
     },
     {
       "keyword": "windcave*bethel woods b wellington",
-      "category": "Eating Out"
+      "category": "Dining / Eating Out"
     },
     {
-      "keyword": "woolworths cable car la wellington",
+      "keyword": "windcave*plenty foods b upper hutt",
       "category": "Groceries"
     },
     {
-      "keyword": "woolworths johnsonville wellington",
-      "category": "Groceries"
+      "keyword": "windcave*the old quarte wellington",
+      "category": "Dining / Eating Out"
     },
     {
       "keyword": "www.hurricanes.co.nz    upper hutt",

@@ -33,14 +33,17 @@ DEFAULT_FOLDER = Path("/Users/neerajpatel/Finance/Credit Card Statements/2026")
 
 # ── Colours matching the main app ───────────────────────────────────────────
 CAT_COLOURS = {
-    "Bills":         "#534AB7",
-    "Groceries":     "#1D9E75",
-    "Transport":     "#185FA5",
-    "Shopping":      "#BA7517",
-    "Eating Out":    "#D85A30",
-    "Entertainment": "#D4537E",
-    "Travel":        "#0F6E56",
-    "Other":         "#888780",
+    "Groceries":            "#1D9E75",
+    "Dining / Eating Out":  "#D85A30",
+    "Transport":            "#185FA5",
+    "Fuel":                 "#2874A6",
+    "Bills & Utilities":    "#534AB7",
+    "Shopping":             "#BA7517",
+    "Entertainment":        "#D4537E",
+    "Health & Medical":     "#C0392B",
+    "Travel":               "#0F6E56",
+    "Income":               "#27AE60",
+    "Other":                "#5F5E5A",
 }
 
 MONTH_ORDER = [

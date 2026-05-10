@@ -19,75 +19,114 @@ from tkinter import filedialog, font, messagebox, ttk
 
 # ── Category rules ─────────────────────────────────────────────────────────
 RULES = [
-    ("Payment / Refund", [
-        "payment - thank you", "payment thank you", "direct credit",
-        "refund", "reversal", "credit transfer",
+    ("Income", [
+        "salary", "payroll", "wages", "direct credit",
+        "interest", "dividend", "tax refund",
     ]),
-    ("Transport", [
-        "didi", "uber", "ola cab", "metlink", "nz bus", "taxicab", "taxi",
-        "parking", "bp ", "z energy", "mobil", "gull", "caltex",
-        "fuel", "petrol", "transit", "snapper",
-    ]),
-    ("Travel", [
-        "air new zealand", "air nz", "jetstar", "qantas", "virgin australia",
-        "expedia", "booking.com", "airbnb", "hotel", "motel", "hostel",
-        "hilton", "marriott", "novotel",
-    ]),
+
     ("Groceries", [
-        "new world", "countdown", "pak'nsave", "paknsave", "fresh choice",
-        "four square", "moore wilsons", "farro", "plenty foods", "windcave*plenty",
+        "new world", "countdown", "woolworths",
+        "pak'nsave", "paknsave", "fresh choice",
+        "four square", "farro", "costco",
+        "moore wilsons",
     ]),
-    ("Eating Out", [
-        "mcdonald", "mcdonalds", "kfc", "subway", "burger king", "wendys",
-        "pizza", "domino", "noodle", "sushi", "kebab", "little india",
-        "istana", "old quarter", "windcave*the old", "restaurant", "bistro",
-        "cafe", "coffee", "bakery", "thai", "dumpling",
-        "fish & chip", "fish and chip", "takeaway",
+
+    ("Dining / Eating Out", [
+        "mcdonald", "mcdonalds", "kfc", "subway",
+        "burger king", "wendys", "pizza",
+        "restaurant", "bistro", "cafe",
+        "coffee", "bakery", "sushi",
+        "thai", "dumpling", "takeaway",
+        "uber eats",
     ]),
-    ("Entertainment", [
-        "embassy theatre", "hoyts", "event cinema", "reading cinema",
-        "sky stadium", "ticketek", "ticketmaster", "steam ", "playstation",
-        "xbox", "nintendo", "spotify", "netflix", "disney+",
-        "amazon prime", "youtube premium",
+
+    ("Transport", [
+        "uber", "didi", "ola", "taxi",
+        "snapper", "at hop", "bus",
+        "train", "parking",
     ]),
-    ("Bills", [
-        "apple.com", "apple.com/bill", "rocket mobile", "2degrees",
-        "vodafone", "spark", "orcon", "skinny", "trustpower",
-        "genesis energy", "contact energy", "mercury energy", "meridian",
-        "wellington electricity", "insurance", "aia", "southern cross",
-        "aa insurance", "rent", "body corp", "rates", "gym",
-        "les mills", "anytime fitness",
+
+    ("Fuel", [
+        "bp ", "z energy", "mobil",
+        "gull", "caltex", "fuel",
+        "petrol",
     ]),
+
+    ("Bills & Utilities", [
+        "spark", "vodafone", "one nz",
+        "2degrees", "orcon", "skinny",
+        "contact energy", "meridian",
+        "mercury energy", "genesis",
+        "watercare", "power", "electricity",
+        "gas bill", "internet",
+        "apple.com/bill", "apple.com",
+    ]),
+
     ("Shopping", [
-        "the warehouse", "thewarehouse", "bunnings", "mitre 10",
-        "placemakers", "briscoes", "harvey norman", "jb hi-fi",
-        "noel leeming", "spotlight", "kmart", "farmers", "glassons",
-        "cotton on", "h&m", "zara", "amazon", "trademe", "ebay",
-        "chemist warehouse", "life pharmacy", "unichem", "whitcoulls",
-        "paper plus", "mighty ape",
+        "amazon", "trademe", "ebay",
+        "the warehouse", "kmart",
+        "farmers", "glassons",
+        "cotton on", "zara", "h&m",
+        "briscoes", "mitre 10",
+        "bunnings", "harvey norman",
+        "jb hi-fi", "noel leeming",
+        "mighty ape",
+    ]),
+
+    ("Entertainment", [
+        "spotify", "netflix", "disney+",
+        "youtube premium", "amazon prime",
+        "steam", "playstation", "xbox",
+        "nintendo", "cinema", "hoyts",
+        "event cinema", "ticketmaster",
+        "ticketek",
+    ]),
+
+    ("Health & Medical", [
+        "doctor", "medical", "dentist",
+        "chemist", "pharmacy", "hospital",
+        "physio", "healthcare",
+        "unichem", "life pharmacy",
+        "chemist warehouse",
+    ]),
+
+    ("Travel", [
+        "air new zealand", "air nz",
+        "jetstar", "qantas",
+        "booking.com", "expedia",
+        "airbnb", "hotel",
+        "motel", "hostel",
     ]),
 ]
 
 CATEGORY_ORDER = [
-    "Groceries", "Eating Out", "Shopping", "Bills",
-    "Transport", "Travel", "Entertainment", "Payment / Refund", "Other",
+    "Groceries",
+    "Dining / Eating Out",
+    "Transport",
+    "Fuel",
+    "Bills & Utilities",
+    "Shopping",
+    "Entertainment",
+    "Health & Medical",
+    "Travel",
+    "Income",
+    "Other",
 ]
 
-ALL_CATEGORIES = [
-    "Groceries", "Eating Out", "Shopping", "Bills",
-    "Transport", "Travel", "Entertainment", "Payment / Refund", "Other",
-]
+ALL_CATEGORIES = CATEGORY_ORDER.copy()
 
 CAT_COLOURS = {
-    "Bills":            "#534AB7",
-    "Groceries":        "#1D9E75",
-    "Transport":        "#185FA5",
-    "Shopping":         "#BA7517",
-    "Eating Out":       "#D85A30",
-    "Entertainment":    "#D4537E",
-    "Travel":           "#0F6E56",
-    "Payment / Refund": "#888780",
-    "Other":            "#5F5E5A",
+    "Groceries":            "#1D9E75",
+    "Dining / Eating Out":  "#D85A30",
+    "Transport":            "#185FA5",
+    "Fuel":                 "#2874A6",
+    "Bills & Utilities":    "#534AB7",
+    "Shopping":             "#BA7517",
+    "Entertainment":        "#D4537E",
+    "Health & Medical":     "#C0392B",
+    "Travel":               "#0F6E56",
+    "Income":               "#27AE60",
+    "Other":                "#5F5E5A",
 }
 
 # Path to learned rules file (same folder as this script)
