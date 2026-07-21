@@ -25,6 +25,10 @@
       "category": "Entertainment"
     },
     {
+      "keyword": "gamedaynz* wellington   auckland",
+      "category": "Bills & Utilities"
+    },
+    {
       "keyword": "istana malaysia restaur te aro",
       "category": "Dining / Eating Out"
     },
@@ -39,6 +43,14 @@
     {
       "keyword": "lululemon athletica     auckland",
       "category": "Shopping"
+    },
+    {
+      "keyword": "monsoon poon            wellington",
+      "category": "Dining / Eating Out"
+    },
+    {
+      "keyword": "moshtix nz              auckland",
+      "category": "Entertainment"
     },
     {
       "keyword": "number one shoes upper  upper hutt",
@@ -69,6 +81,10 @@
       "category": "Shopping"
     },
     {
+      "keyword": "sp fineshave            albany",
+      "category": "Health & Medical"
+    },
+    {
       "keyword": "sp scent floral bout    lower hutt",
       "category": "Shopping"
     },
@@ -79,6 +95,10 @@
     {
       "keyword": "st johns bar & eatery   wellington cent",
       "category": "Dining / Eating Out"
+    },
+    {
+      "keyword": "strike                  petone",
+      "category": "Entertainment"
     },
     {
       "keyword": "t/a pak n save porirua  porirua",
@@ -143,6 +163,10 @@
     {
       "keyword": "www.hurricanes.co.nz    upper hutt",
       "category": "Entertainment"
+    },
+    {
+      "keyword": "z trentham              upper hutt",
+      "category": "Fuel"
     }
   ]
 }
