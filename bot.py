@@ -914,8 +914,7 @@ class App(tk.Tk):
             self._csv_path = path
             name = Path(path).name
             self._path_var.set(name)
-            self._btn_run.config(state="normal")
-            self._status_var.set(f"Ready — {name}")
+            # Reset the current view before processing the newly selected file.
             self._transactions = []
             self._canvas.delete("all")
             for w in self._cards_row.winfo_children():
@@ -923,6 +922,10 @@ class App(tk.Tk):
             self._tree.delete(*self._tree.get_children())
             self._btn_save.config(state="disabled")
             self._btn_recategorise.config(state="disabled")
+
+            # Automatically categorise as soon as a file is selected.
+            self._status_var.set(f"Loading {name}…")
+            self._run()
 
     def _run(self):
         if not self._csv_path:
