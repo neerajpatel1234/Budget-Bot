@@ -1,5 +1,5 @@
 """
-Spending Categoriser — Redesigned GUI
+Spending Categoriser — Apple-style light GUI
 Run with:  python spending_categoriser_gui.py
 
 Requires only Python 3 standard library (tkinter is built-in).
@@ -11,6 +11,7 @@ import json
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
 from collections import defaultdict
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -88,49 +89,54 @@ CATEGORY_ORDER = [
 ]
 ALL_CATEGORIES = CATEGORY_ORDER.copy()
 
-# Refined palette — each category gets a distinct accent
+# Apple system colours
 CAT_COLOURS = {
-    "Groceries":            "#2ECC71",
-    "Dining / Eating Out":  "#E74C3C",
-    "Transport":            "#3498DB",
-    "Fuel":                 "#1ABC9C",
-    "Bills & Utilities":    "#9B59B6",
-    "Shopping":             "#F39C12",
-    "Entertainment":        "#E91E8C",
-    "Health & Medical":     "#FF5252",
-    "Travel":               "#00BCD4",
-    "Income":               "#27AE60",
-    "Other":                "#78909C",
+    "Groceries":            "#34C759",
+    "Dining / Eating Out":  "#FF3B30",
+    "Transport":            "#007AFF",
+    "Fuel":                 "#32ADE6",
+    "Bills & Utilities":    "#AF52DE",
+    "Shopping":             "#FF9500",
+    "Entertainment":        "#FF2D55",
+    "Health & Medical":     "#A2845E",
+    "Travel":               "#5856D6",
+    "Income":               "#248A3D",
+    "Other":                "#8E8E93",
 }
 
 LEARNED_RULES_PATH = Path(__file__).parent / "rules.json"
 
-# ── Design tokens ───────────────────────────────────────────────────────────
-BG           = "#0F1117"   # deep navy-black
-PANEL        = "#171B26"   # card/panel
-SIDEBAR      = "#13161F"   # sidebar
-BORDER       = "#252A3A"   # subtle border
-SURFACE      = "#1E2235"   # elevated surface
-ACCENT       = "#4F8EF7"   # primary blue accent
-ACCENT2      = "#7C6AF4"   # secondary purple
-TEXT_PRI     = "#E8EAF0"   # primary text
-TEXT_SEC     = "#8892A4"   # secondary/muted text
-TEXT_DIM     = "#505A70"   # very dim
-SUCCESS      = "#2ECC71"
-WARNING      = "#F39C12"
-DANGER       = "#E74C3C"
+# ── Design tokens (apple.com light) ─────────────────────────────────────────
+WHITE        = "#FFFFFF"
+BG           = "#F5F5F7"   # Apple section grey
+BORDER       = "#D2D2D7"
+HAIRLINE     = "#E8E8ED"
+TEXT_PRI     = "#1D1D1F"
+TEXT_SEC     = "#6E6E73"
+TEXT_DIM     = "#86868B"
+ACCENT       = "#0071E3"   # Apple link blue
+ACCENT_HOVER = "#0077ED"
+ACCENT_TINT  = "#E8F1FD"
+SUCCESS      = "#34C759"
+DANGER       = "#FF3B30"
+MANUAL_ROW   = "#FFF8E1"
+ROW_ALT      = "#FBFBFD"
 
-# Solid tint approximations (tkinter doesn't support 8-digit hex / alpha)
-ACCENT_TINT  = "#1A2A45"   # ACCENT at ~12% on BG
-CANVAS_TRACK = "#1C2133"   # very dark bar track
+if sys.platform == "darwin":
+    FAMILY, MONO = ".AppleSystemUIFont", "Menlo"
+elif sys.platform.startswith("win"):
+    FAMILY, MONO = "Segoe UI", "Consolas"
+else:
+    FAMILY, MONO = "Helvetica", "Courier"
 
-FONT_TITLE   = ("Helvetica Neue", 13, "bold")
-FONT_HEADING = ("Helvetica Neue", 11, "bold")
-FONT_BODY    = ("Helvetica Neue", 10)
-FONT_SMALL   = ("Helvetica Neue", 9)
-FONT_MONO    = ("Menlo", 9)
-FONT_BIG     = ("Helvetica Neue", 22, "bold")
-FONT_MED     = ("Helvetica Neue", 16, "bold")
+FONT_HERO    = (FAMILY, 30, "bold")
+FONT_HEADING = (FAMILY, 15, "bold")
+FONT_BODY    = (FAMILY, 12)
+FONT_BOLD    = (FAMILY, 12, "bold")
+FONT_SMALL   = (FAMILY, 11)
+FONT_NAV     = (FAMILY, 12)
+FONT_MONO    = (MONO, 10)
+FONT_MED     = (FAMILY, 22, "bold")
 
 
 # ── Learned rules persistence ───────────────────────────────────────────────
@@ -214,35 +220,80 @@ def save_csv(transactions: list, output_path: str) -> None:
             writer.writerow({"Category": cat, "Amount": f"{totals[cat]:.2f}"})
 
 
-# ── Helper widgets ──────────────────────────────────────────────────────────
+# ── Drawing helpers ─────────────────────────────────────────────────────────
 
-def styled_button(parent, text, command, style="primary", **kw):
-    styles = {
-        "primary": dict(bg=ACCENT,   fg=TEXT_PRI,  ab="#3A7AE0", af=TEXT_PRI),
-        "danger":  dict(bg=DANGER,   fg=TEXT_PRI,  ab="#C0392B", af=TEXT_PRI),
-        "ghost":   dict(bg=SURFACE,  fg=TEXT_SEC,  ab=BORDER,    af=TEXT_PRI),
-        "purple":  dict(bg=ACCENT2,  fg=TEXT_PRI,  ab="#6254D0",  af=TEXT_PRI),
-        "dark":    dict(bg=PANEL,    fg=TEXT_SEC,  ab=SURFACE,   af=TEXT_PRI),
+def rrect(c, x1, y1, x2, y2, r, **kw):
+    """Rounded rectangle on a canvas."""
+    r = max(0, min(r, (x2 - x1) / 2, (y2 - y1) / 2))
+    pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r,
+           x2, y2 - r, x2, y2, x2 - r, y2, x1 + r, y2,
+           x1, y2, x1, y2 - r, x1, y1 + r, x1, y1]
+    kw.setdefault("outline", "")
+    return c.create_polygon(pts, smooth=True, **kw)
+
+
+class PillButton(tk.Canvas):
+    """Apple-style pill button."""
+    STYLES = {
+        #            fill       hover      text       disabled-fill  disabled-text
+        "primary":   (ACCENT,   ACCENT_HOVER, WHITE,   HAIRLINE, "#AEAEB2"),
+        "secondary": (HAIRLINE, "#DCDCE0",  TEXT_PRI,  HAIRLINE, "#AEAEB2"),
+        "danger":    (DANGER,   "#E0352B",  WHITE,     HAIRLINE, "#AEAEB2"),
+        "tint":      (ACCENT_TINT, "#D6E6FB", ACCENT,  HAIRLINE, "#AEAEB2"),
     }
-    s = styles.get(style, styles["primary"])
-    btn = tk.Button(
-        parent, text=text, command=command,
-        bg=s["bg"], fg=s["fg"],
-        activebackground=s["ab"], activeforeground=s["af"],
-        relief="flat", bd=0,
-        font=FONT_BODY, cursor="hand2",
-        padx=kw.pop("padx", 14), pady=kw.pop("pady", 6),
-        **kw,
-    )
-    return btn
 
+    def __init__(self, parent, text, command, style="primary",
+                 state="normal", padx=18, height=32):
+        self._font = tkfont.Font(font=FONT_BOLD)
+        self._text, self._command = text, command
+        self._style, self._state = style, state
+        self._padx, self._h = padx, height
+        self._hover = False
+        super().__init__(parent, width=self._width(), height=height,
+                         bg=parent.cget("bg"), highlightthickness=0, bd=0)
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self.bind("<Button-1>", self._click)
+        self._draw()
 
-def pill_label(parent, text, color):
-    """Coloured pill badge."""
-    f = tk.Frame(parent, bg=color + "28", padx=7, pady=2)
-    tk.Label(f, text=text, bg=color + "28", fg=color,
-             font=FONT_SMALL).pack()
-    return f
+    def _width(self):
+        return self._font.measure(self._text) + 2 * self._padx
+
+    def _set_hover(self, v):
+        self._hover = v
+        self._draw()
+
+    def _click(self, _):
+        if self._state == "normal" and self._command:
+            self._command()
+
+    def _draw(self):
+        fill, hover, fg, dfill, dfg = self.STYLES[self._style]
+        enabled = self._state == "normal"
+        self.configure(cursor="hand2" if enabled else "arrow")
+        self.delete("all")
+        w = int(self.cget("width"))
+        rrect(self, 0, 0, w, self._h, self._h / 2,
+              fill=(hover if self._hover else fill) if enabled else dfill)
+        self.create_text(w / 2, self._h / 2, text=self._text, font=FONT_BOLD,
+                         fill=fg if enabled else dfg)
+
+    def configure(self, cnf=None, **kw):
+        if cnf:
+            kw.update(cnf)
+        changed = False
+        if "text" in kw:
+            self._text = kw.pop("text")
+            kw["width"] = self._width()
+            changed = True
+        if "state" in kw:
+            self._state = kw.pop("state")
+            changed = True
+        super().configure(**kw)
+        if changed:
+            self._draw()
+
+    config = configure
 
 
 # ── Re-categorise Dialog ────────────────────────────────────────────────────
@@ -252,9 +303,7 @@ class RecategoriseDialog(tk.Toplevel):
         super().__init__(parent)
         self.title("Re-categorise")
         self.resizable(False, False)
-        self.grab_set()
-        self.configure(bg=BG)
-        self.overrideredirect(False)
+        self.configure(bg=WHITE)
 
         self._transactions = transactions
         self._item_ids = item_ids
@@ -264,71 +313,57 @@ class RecategoriseDialog(tk.Toplevel):
 
         self._build()
         self.update_idletasks()
-        pw, py = parent.winfo_rootx(), parent.winfo_rooty()
-        w, h = self.winfo_width(), self.winfo_height()
-        self.geometry(f"+{pw + 200}+{py + 150}")
+        self.geometry(f"+{parent.winfo_rootx() + 200}+{parent.winfo_rooty() + 120}")
+        self.grab_set()
 
     def _build(self):
-        # Top bar
-        bar = tk.Frame(self, bg=PANEL, height=52)
-        bar.pack(fill="x")
-        bar.pack_propagate(False)
-        tk.Label(bar, text="Assign Category", bg=PANEL, fg=TEXT_PRI,
-                 font=FONT_HEADING).pack(side="left", padx=20, pady=14)
+        body = tk.Frame(self, bg=WHITE)
+        body.pack(fill="both", padx=32, pady=28)
 
-        tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
+        tk.Label(body, text="Assign a category", bg=WHITE, fg=TEXT_PRI,
+                 font=(FAMILY, 20, "bold")).pack(anchor="w")
 
-        body = tk.Frame(self, bg=BG)
-        body.pack(fill="both", padx=20, pady=16)
-
-        # Info
         if len(self._item_ids) == 1:
             vals = self._tree.item(self._item_ids[0], "values")
             desc = vals[1] if len(vals) > 1 else ""
             current = vals[2] if len(vals) > 2 else ""
-            info = f'"{desc}"'
-            sub  = f"Current: {current}"
+            info, sub = f'“{desc}”', f"Currently {current}"
         else:
             info = f"{len(self._item_ids)} transactions selected"
-            sub  = "A rule will be saved for each description"
+            sub = "A rule will be saved for each description"
 
-        tk.Label(body, text=info, bg=BG, fg=TEXT_PRI,
-                 font=FONT_HEADING, wraplength=360, justify="left").pack(anchor="w")
-        tk.Label(body, text=sub, bg=BG, fg=TEXT_SEC,
-                 font=FONT_SMALL).pack(anchor="w", pady=(2, 10))
+        tk.Label(body, text=info, bg=WHITE, fg=TEXT_PRI, font=FONT_BOLD,
+                 wraplength=380, justify="left").pack(anchor="w", pady=(10, 0))
+        tk.Label(body, text=sub, bg=WHITE, fg=TEXT_SEC,
+                 font=FONT_SMALL).pack(anchor="w", pady=(2, 14))
 
-        # Note banner
-        note = tk.Frame(body, bg=ACCENT_TINT, padx=12, pady=7)
-        note.pack(fill="x", pady=(0, 14))
-        tk.Label(note, text="💾  Rule saved to rules.json for future imports",
-                 bg=ACCENT_TINT, fg=ACCENT, font=FONT_SMALL).pack(anchor="w")
+        note = tk.Frame(body, bg=BG, padx=14, pady=10)
+        note.pack(fill="x", pady=(0, 16))
+        tk.Label(note, text="Your choice is saved to rules.json and applied to future imports.",
+                 bg=BG, fg=TEXT_SEC, font=FONT_SMALL, wraplength=380,
+                 justify="left").pack(anchor="w")
 
-        # Radio grid
-        grid = tk.Frame(body, bg=BG)
+        grid = tk.Frame(body, bg=WHITE)
         grid.pack(fill="x")
-
         for i, cat in enumerate(ALL_CATEGORIES):
-            colour = CAT_COLOURS.get(cat, TEXT_SEC)
-            row_f = tk.Frame(grid, bg=BG)
-            row_f.grid(row=i // 2, column=i % 2, sticky="ew",
-                       padx=(0, 20), pady=3)
-            rb = tk.Radiobutton(
-                row_f, text=cat,
-                variable=self._result_var, value=cat,
-                bg=BG, fg=TEXT_PRI,
-                activebackground=BG, activeforeground=TEXT_PRI,
-                selectcolor=colour,
-                font=FONT_BODY, cursor="hand2",
-                highlightthickness=0,
-            )
-            rb.pack(side="left")
+            row_f = tk.Frame(grid, bg=WHITE)
+            row_f.grid(row=i // 2, column=i % 2, sticky="w", padx=(0, 24), pady=4)
+            tk.Label(row_f, text="●", bg=WHITE, fg=CAT_COLOURS.get(cat, TEXT_SEC),
+                     font=FONT_SMALL).pack(side="left", padx=(0, 2))
+            tk.Radiobutton(
+                row_f, text=cat, variable=self._result_var, value=cat,
+                bg=WHITE, fg=TEXT_PRI, activebackground=WHITE,
+                activeforeground=TEXT_PRI, selectcolor=WHITE,
+                font=FONT_BODY, cursor="hand2", highlightthickness=0, bd=0,
+            ).pack(side="left")
 
-        tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(14, 12))
+        tk.Frame(body, bg=HAIRLINE, height=1).pack(fill="x", pady=(20, 16))
 
-        btn_row = tk.Frame(body, bg=BG)
+        btn_row = tk.Frame(body, bg=WHITE)
         btn_row.pack(fill="x")
-        styled_button(btn_row, "Cancel", self.destroy, style="ghost").pack(side="right", padx=(8, 0))
-        styled_button(btn_row, "Apply & Save", self._apply, style="primary").pack(side="right")
+        PillButton(btn_row, "Apply", self._apply).pack(side="right")
+        PillButton(btn_row, "Cancel", self.destroy,
+                   style="secondary").pack(side="right", padx=(0, 8))
 
     def _apply(self):
         new_cat = self._result_var.get()
@@ -360,14 +395,16 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Spending Categoriser")
-        self.geometry("980x700")
-        self.minsize(800, 560)
+        self.geometry("1000x720")
+        self.minsize(820, 580)
         self.configure(bg=BG)
 
         self._transactions = []
         self._csv_path = ""
         self._learned: dict = load_learned_rules()
         self._active_tab = tk.StringVar(value="summary")
+        self._chart_data = []
+        self._chart_total = 0.0
 
         self._setup_styles()
         self._build_ui()
@@ -375,170 +412,125 @@ class App(tk.Tk):
     def _setup_styles(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        # Treeview
-        style.configure("Dark.Treeview",
-                        background=PANEL, fieldbackground=PANEL,
-                        foreground=TEXT_PRI, rowheight=28,
-                        font=FONT_BODY, borderwidth=0)
-        style.configure("Dark.Treeview.Heading",
-                        background=SURFACE, foreground=TEXT_SEC,
-                        font=FONT_SMALL, relief="flat", padding=(8, 6))
-        style.map("Dark.Treeview",
+        style.configure("Light.Treeview",
+                        background=WHITE, fieldbackground=WHITE,
+                        foreground=TEXT_PRI, rowheight=36,
+                        font=FONT_BODY, borderwidth=0, relief="flat")
+        style.configure("Light.Treeview.Heading",
+                        background=WHITE, foreground=TEXT_DIM,
+                        font=FONT_SMALL, relief="flat", borderwidth=0,
+                        padding=(10, 10))
+        style.map("Light.Treeview",
                   background=[("selected", ACCENT)],
-                  foreground=[("selected", "#FFFFFF")])
-        style.map("Dark.Treeview.Heading",
-                  background=[("active", BORDER)])
-        # Scrollbar
-        style.configure("Dark.Vertical.TScrollbar",
-                        background=SURFACE, troughcolor=PANEL,
-                        bordercolor=PANEL, arrowcolor=TEXT_DIM, width=8)
-        style.map("Dark.Vertical.TScrollbar",
-                  background=[("active", BORDER)])
-        # Combobox
-        style.configure("Dark.TCombobox",
-                        fieldbackground=SURFACE, background=SURFACE,
-                        foreground=TEXT_PRI, selectbackground=ACCENT,
-                        bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER)
+                  foreground=[("selected", WHITE)])
+        style.map("Light.Treeview.Heading",
+                  background=[("active", WHITE)])
+        style.layout("Light.Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
+        style.configure("Light.Vertical.TScrollbar",
+                        background=BORDER, troughcolor=WHITE,
+                        bordercolor=WHITE, lightcolor=BORDER, darkcolor=BORDER,
+                        arrowcolor=WHITE, width=8, relief="flat")
+        style.map("Light.Vertical.TScrollbar", background=[("active", TEXT_DIM)])
+        style.configure("Light.TCombobox",
+                        fieldbackground=WHITE, background=WHITE,
+                        foreground=TEXT_PRI, selectbackground=ACCENT_TINT,
+                        selectforeground=TEXT_PRI, arrowcolor=TEXT_SEC,
+                        bordercolor=BORDER, lightcolor=WHITE, darkcolor=WHITE,
+                        padding=4)
+        self.option_add("*TCombobox*Listbox.background", WHITE)
+        self.option_add("*TCombobox*Listbox.foreground", TEXT_PRI)
+        self.option_add("*TCombobox*Listbox.selectBackground", ACCENT)
+        self.option_add("*TCombobox*Listbox.font", FONT_BODY)
+
+    # ── Layout ──────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        # ── Sidebar ──────────────────────────────────────────────────────
-        self._sidebar = tk.Frame(self, bg=SIDEBAR, width=200)
-        self._sidebar.pack(side="left", fill="y")
-        self._sidebar.pack_propagate(False)
-
-        # Logo / brand
-        brand = tk.Frame(self._sidebar, bg=SIDEBAR, pady=20)
-        brand.pack(fill="x")
-        tk.Label(brand, text="◈", bg=SIDEBAR, fg=ACCENT,
-                 font=("Helvetica Neue", 20)).pack()
-        tk.Label(brand, text="Spending", bg=SIDEBAR, fg=TEXT_PRI,
-                 font=("Helvetica Neue", 11, "bold")).pack()
-        tk.Label(brand, text="Categoriser", bg=SIDEBAR, fg=TEXT_SEC,
-                 font=FONT_SMALL).pack()
-
-        tk.Frame(self._sidebar, bg=BORDER, height=1).pack(fill="x", padx=16, pady=(0, 8))
-
-        # Nav buttons
-        self._nav_btns = {}
-        nav_items = [
-            ("summary",      "▣  Overview",       "Summary & charts"),
-            ("transactions", "≡  Transactions",   "Browse & edit"),
-            ("rules",        "⚙  Learned Rules",  "Auto-categorise"),
-        ]
-        for key, label, sub in nav_items:
-            btn = self._make_nav_btn(key, label, sub)
-            self._nav_btns[key] = btn
-
-        # Spacer
-        tk.Frame(self._sidebar, bg=SIDEBAR).pack(fill="both", expand=True)
-
-        # File section at bottom of sidebar
-        file_section = tk.Frame(self._sidebar, bg=SIDEBAR, padx=12, pady=12)
-        file_section.pack(fill="x")
-        tk.Frame(file_section, bg=BORDER, height=1).pack(fill="x", pady=(0, 10))
-        tk.Label(file_section, text="DATA SOURCE", bg=SIDEBAR, fg=TEXT_DIM,
-                 font=("Helvetica Neue", 8, "bold")).pack(anchor="w")
-        self._path_var = tk.StringVar(value="No file loaded")
-        self._path_label = tk.Label(file_section, textvariable=self._path_var,
-                                    bg=SIDEBAR, fg=TEXT_SEC, font=FONT_MONO,
-                                    wraplength=160, justify="left", anchor="w")
-        self._path_label.pack(anchor="w", pady=(4, 8))
-        styled_button(file_section, "Browse CSV…", self._browse,
-                      style="ghost").pack(fill="x", pady=(0, 4))
-        self._btn_run = styled_button(file_section, "▶  Categorise",
-                                      self._run, style="primary", state="disabled")
-        self._btn_run.pack(fill="x")
-
-        # Learned count
         self._learned_var = tk.StringVar()
-        self._update_learned_label()
-        tk.Label(file_section, textvariable=self._learned_var,
-                 bg=SIDEBAR, fg=ACCENT, font=FONT_SMALL).pack(anchor="w", pady=(8, 0))
+        self._path_var = tk.StringVar(value="")
 
-        # ── Main content ──────────────────────────────────────────────────
+        # Global nav bar (apple.com style)
+        nav = tk.Frame(self, bg=WHITE, height=56)
+        nav.pack(fill="x")
+        nav.pack_propagate(False)
+        tk.Label(nav, text="◈", bg=WHITE, fg=TEXT_PRI,
+                 font=(FAMILY, 18)).pack(side="left", padx=(24, 6))
+        tk.Label(nav, text="Spending", bg=WHITE, fg=TEXT_PRI,
+                 font=FONT_BOLD).pack(side="left")
+
+        right = tk.Frame(nav, bg=WHITE)
+        right.pack(side="right", padx=20)
+        self._btn_run = PillButton(right, "Categorise", self._run, state="disabled")
+        self._btn_run.pack(side="right")
+        PillButton(right, "Choose CSV…", self._browse,
+                   style="secondary").pack(side="right", padx=(0, 8))
+
+        tabs = tk.Frame(nav, bg=WHITE)
+        tabs.place(relx=0.5, rely=0.5, anchor="center")
+        self._tabs = {}
+        for key, label in (("summary", "Overview"),
+                           ("transactions", "Transactions"),
+                           ("rules", "Learned Rules")):
+            self._tabs[key] = self._make_tab(tabs, key, label)
+
+        tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
+
+        # Page header
         self._main = tk.Frame(self, bg=BG)
-        self._main.pack(side="left", fill="both", expand=True)
+        self._main.pack(fill="both", expand=True)
 
-        # Top bar
-        topbar = tk.Frame(self._main, bg=PANEL, height=52)
-        topbar.pack(fill="x")
-        topbar.pack_propagate(False)
-        self._page_title = tk.Label(topbar, text="Overview", bg=PANEL, fg=TEXT_PRI,
-                                    font=FONT_HEADING)
-        self._page_title.pack(side="left", padx=24, pady=14)
-        self._status_var = tk.StringVar(value="Select a CSV file to begin")
-        tk.Label(topbar, textvariable=self._status_var, bg=PANEL, fg=TEXT_SEC,
-                 font=FONT_SMALL).pack(side="right", padx=24)
-        tk.Frame(self._main, bg=BORDER, height=1).pack(fill="x")
+        hdr = tk.Frame(self._main, bg=BG)
+        hdr.pack(fill="x", padx=40, pady=(28, 8))
+        titles = tk.Frame(hdr, bg=BG)
+        titles.pack(side="left")
+        self._page_title = tk.Label(titles, text="Overview", bg=BG,
+                                    fg=TEXT_PRI, font=FONT_HERO)
+        self._page_title.pack(anchor="w")
+        self._status_var = tk.StringVar(value="Choose a CSV file to begin.")
+        tk.Label(titles, textvariable=self._status_var, bg=BG, fg=TEXT_SEC,
+                 font=(FAMILY, 13)).pack(anchor="w", pady=(2, 0))
+        self._btn_save = PillButton(hdr, "Export summary", self._save,
+                                    style="tint", state="disabled")
+        self._btn_save.pack(side="right", anchor="s")
 
-        # Content frames
-        self._frames = {}
-        for key in ("summary", "transactions", "rules"):
-            f = tk.Frame(self._main, bg=BG)
-            self._frames[key] = f
-
+        self._frames = {k: tk.Frame(self._main, bg=BG)
+                        for k in ("summary", "transactions", "rules")}
         self._build_summary_frame()
         self._build_tx_frame()
         self._build_rules_frame()
-
+        self._update_learned_label()
         self._switch_tab("summary")
 
-    def _make_nav_btn(self, key, label, sub):
-        f = tk.Frame(self._sidebar, bg=SIDEBAR, cursor="hand2")
-        f.pack(fill="x", padx=8, pady=2)
+    def _make_tab(self, parent, key, label):
+        f = tk.Frame(parent, bg=WHITE, cursor="hand2")
+        f.pack(side="left", padx=14)
+        lbl = tk.Label(f, text=label, bg=WHITE, fg=TEXT_SEC, font=FONT_NAV)
+        lbl.pack(pady=(4, 2))
+        under = tk.Frame(f, bg=WHITE, height=2)
+        under.pack(fill="x")
 
-        inner = tk.Frame(f, bg=SIDEBAR, padx=12, pady=9)
-        inner.pack(fill="x")
-        lbl = tk.Label(inner, text=label, bg=SIDEBAR, fg=TEXT_SEC,
-                       font=FONT_BODY, anchor="w")
-        lbl.pack(fill="x")
-        sub_lbl = tk.Label(inner, text=sub, bg=SIDEBAR, fg=TEXT_DIM,
-                           font=FONT_SMALL, anchor="w")
-        sub_lbl.pack(fill="x")
-
-        def _enter(e): 
+        def enter(_):
             if self._active_tab.get() != key:
-                f.config(bg=SURFACE)
-                inner.config(bg=SURFACE)
-                lbl.config(bg=SURFACE)
-                sub_lbl.config(bg=SURFACE)
-        def _leave(e):
+                lbl.config(fg=TEXT_PRI)
+
+        def leave(_):
             if self._active_tab.get() != key:
-                f.config(bg=SIDEBAR)
-                inner.config(bg=SIDEBAR)
-                lbl.config(bg=SIDEBAR)
-                sub_lbl.config(bg=SIDEBAR)
-        def _click(e): self._switch_tab(key)
+                lbl.config(fg=TEXT_SEC)
 
-        for w in (f, inner, lbl, sub_lbl):
-            w.bind("<Enter>", _enter)
-            w.bind("<Leave>", _leave)
-            w.bind("<Button-1>", _click)
-
-        return (f, inner, lbl, sub_lbl)
+        for w in (f, lbl, under):
+            w.bind("<Enter>", enter)
+            w.bind("<Leave>", leave)
+            w.bind("<Button-1>", lambda _e, k=key: self._switch_tab(k))
+        return lbl, under
 
     def _switch_tab(self, key):
-        prev = self._active_tab.get()
-        # Reset previous
-        if prev in self._nav_btns:
-            f, inner, lbl, sub_lbl = self._nav_btns[prev]
-            for w in (f, inner, lbl, sub_lbl):
-                w.config(bg=SIDEBAR)
-            lbl.config(fg=TEXT_SEC)
-
         self._active_tab.set(key)
-
-        # Highlight active
-        f, inner, lbl, sub_lbl = self._nav_btns[key]
-        for w in (f, inner, lbl, sub_lbl):
-            w.config(bg=ACCENT_TINT)
-        lbl.config(fg=ACCENT)
-
-        # Titles
-        titles = {"summary": "Overview", "transactions": "Transactions", "rules": "Learned Rules"}
-        self._page_title.config(text=titles[key])
-
-        # Show/hide frames
+        for k, (lbl, under) in self._tabs.items():
+            on = k == key
+            lbl.config(fg=TEXT_PRI if on else TEXT_SEC)
+            under.config(bg=ACCENT if on else WHITE)
+        self._page_title.config(text={"summary": "Overview",
+                                      "transactions": "Transactions",
+                                      "rules": "Learned Rules"}[key])
         for k, frm in self._frames.items():
             if k == key:
                 frm.pack(fill="both", expand=True)
@@ -549,46 +541,26 @@ class App(tk.Tk):
 
     def _build_summary_frame(self):
         frm = self._frames["summary"]
-
-        # Metric cards row
         self._cards_row = tk.Frame(frm, bg=BG)
-        self._cards_row.pack(fill="x", padx=20, pady=(20, 12))
+        self._cards_row.pack(fill="x", padx=40, pady=(12, 16))
+        for i in range(4):
+            self._cards_row.columnconfigure(i, weight=1, uniform="cards")
 
-        # Chart area
-        chart_wrap = tk.Frame(frm, bg=BG)
-        chart_wrap.pack(fill="both", expand=True, padx=20, pady=(0, 12))
+        self._canvas = tk.Canvas(frm, bg=BG, highlightthickness=0, bd=0)
+        self._canvas.pack(fill="both", expand=True, padx=40, pady=(0, 32))
+        self._canvas.bind("<Configure>", lambda _e: self._draw_chart())
 
-        chart_hdr = tk.Frame(chart_wrap, bg=BG)
-        chart_hdr.pack(fill="x", pady=(0, 8))
-        tk.Label(chart_hdr, text="Spending Breakdown", bg=BG,
-                 fg=TEXT_PRI, font=FONT_HEADING).pack(side="left")
-
-        self._canvas = tk.Canvas(chart_wrap, bg=PANEL, highlightthickness=0,
-                                  highlightbackground=BORDER, bd=0)
-        self._canvas.pack(fill="both", expand=True)
-
-        # Save button
-        btn_row = tk.Frame(frm, bg=BG)
-        btn_row.pack(fill="x", padx=20, pady=(0, 16))
-        self._btn_save = styled_button(btn_row, "↓  Export CSV Summary",
-                                       self._save, style="ghost", state="disabled")
-        self._btn_save.pack(side="right")
-
-    def _make_metric_card(self, parent, label, value, accent=None):
-        card = tk.Frame(parent, bg=PANEL, padx=18, pady=14)
-        card.pack(side="left", padx=(0, 10), ipadx=4)
-
-        if accent:
-            bar = tk.Frame(card, bg=accent, width=3, height=40)
-            bar.pack(side="left", padx=(0, 12), fill="y")
-
-        info = tk.Frame(card, bg=PANEL)
-        info.pack(side="left")
-        tk.Label(info, text=label, bg=PANEL, fg=TEXT_SEC,
-                 font=FONT_SMALL).pack(anchor="w")
-        tk.Label(info, text=value, bg=PANEL, fg=TEXT_PRI,
-                 font=FONT_MED).pack(anchor="w")
-        return card
+    def _make_metric_card(self, col, label, value, dot):
+        card = tk.Frame(self._cards_row, bg=WHITE, padx=20, pady=16)
+        card.grid(row=0, column=col, sticky="nsew",
+                  padx=(0, 12 if col < 3 else 0))
+        top = tk.Frame(card, bg=WHITE)
+        top.pack(anchor="w")
+        tk.Label(top, text="●", bg=WHITE, fg=dot, font=FONT_SMALL).pack(side="left")
+        tk.Label(top, text=" " + label, bg=WHITE, fg=TEXT_SEC,
+                 font=FONT_SMALL).pack(side="left")
+        tk.Label(card, text=value, bg=WHITE, fg=TEXT_PRI,
+                 font=FONT_MED).pack(anchor="w", pady=(6, 0))
 
     def _render_summary(self):
         for w in self._cards_row.winfo_children():
@@ -609,63 +581,48 @@ class App(tk.Tk):
         avg = spend_total / spend_count if spend_count else 0
         top = sorted(((c, v) for c, v in totals.items() if v > 0), key=lambda x: -x[1])
         top_cat = top[0][0] if top else "—"
-        top_col = CAT_COLOURS.get(top_cat, ACCENT)
 
-        self._make_metric_card(self._cards_row, "Total Spending",
-                               f"${spend_total:,.2f}", ACCENT)
-        self._make_metric_card(self._cards_row, "Transactions",
-                               str(spend_count), ACCENT2)
-        self._make_metric_card(self._cards_row, "Avg per Transaction",
-                               f"${avg:,.2f}", SUCCESS)
-        self._make_metric_card(self._cards_row, "Top Category",
-                               top_cat, top_col)
+        self._make_metric_card(0, "Total spending", f"${spend_total:,.2f}", ACCENT)
+        self._make_metric_card(1, "Transactions", str(spend_count), "#AF52DE")
+        self._make_metric_card(2, "Average", f"${avg:,.2f}", SUCCESS)
+        self._make_metric_card(3, "Top category", top_cat,
+                               CAT_COLOURS.get(top_cat, ACCENT))
 
-        self._canvas.delete("all")
-        self._canvas.update_idletasks()
-        W = max(self._canvas.winfo_width(), 600)
-        H = max(self._canvas.winfo_height(), 260)
+        self._chart_data = top
+        self._chart_total = spend_total
+        self._draw_chart()
 
-        spending_cats = sorted([(c, v) for c, v in totals.items() if v > 0],
-                                key=lambda x: -x[1])
-        if not spending_cats:
+    def _draw_chart(self):
+        c = self._canvas
+        c.delete("all")
+        if not self._chart_data:
             return
+        W = max(c.winfo_width(), 600)
+        H = max(c.winfo_height(), 260)
+        rrect(c, 0, 0, W, H, 18, fill=WHITE)
 
-        max_val = spending_cats[0][1]
-        label_w = 170
-        pct_w = 80
-        bar_x0 = label_w + 12
-        bar_x1 = W - pct_w - 16
-        bar_area = bar_x1 - bar_x0
-        n = len(spending_cats)
-        row_h = max(28, min(44, (H - 24) // n))
+        c.create_text(28, 30, anchor="w", text="Spending breakdown",
+                      fill=TEXT_PRI, font=FONT_HEADING)
 
-        y = 16
-        for i, (cat, val) in enumerate(spending_cats):
+        data = self._chart_data
+        max_val = data[0][1]
+        bar_x0, bar_x1 = 200, W - 170
+        bar_area = max(bar_x1 - bar_x0, 50)
+        row_h = max(34, min(46, (H - 70) // len(data)))
+
+        y = 58
+        for cat, val in data:
+            mid = y + row_h // 2
             colour = CAT_COLOURS.get(cat, TEXT_SEC)
-            bar_w = max(4, int(val / max_val * bar_area))
-            pct = val / spend_total * 100 if spend_total else 0
-
-            # Row bg on hover (alternate subtle shading)
-            bg_col = PANEL if i % 2 == 0 else BG
-            self._canvas.create_rectangle(0, y, W, y + row_h,
-                                           fill=bg_col, outline="")
-
-            # Category label
-            self._canvas.create_text(14, y + row_h // 2, anchor="w",
-                                      text=cat, fill=TEXT_SEC, font=FONT_BODY)
-
-            # Track
-            self._canvas.create_rectangle(bar_x0, y + row_h // 2 - 6,
-                                           bar_x1, y + row_h // 2 + 6,
-                                           fill=CANVAS_TRACK, outline="")
-            # Bar
-            self._canvas.create_rectangle(bar_x0, y + row_h // 2 - 6,
-                                           bar_x0 + bar_w, y + row_h // 2 + 6,
-                                           fill=colour, outline="")
-            # Amount
-            self._canvas.create_text(W - 14, y + row_h // 2, anchor="e",
-                                      text=f"${val:,.2f}  ({pct:.0f}%)",
-                                      fill=TEXT_SEC, font=FONT_SMALL)
+            bar_w = max(8, int(val / max_val * bar_area))
+            pct = val / self._chart_total * 100 if self._chart_total else 0
+            c.create_text(28, mid, anchor="w", text=cat,
+                          fill=TEXT_PRI, font=FONT_BODY)
+            rrect(c, bar_x0, mid - 5, bar_x1, mid + 5, 5, fill=BG)
+            rrect(c, bar_x0, mid - 5, bar_x0 + bar_w, mid + 5, 5, fill=colour)
+            c.create_text(W - 28, mid, anchor="e",
+                          text=f"${val:,.2f}   {pct:.0f}%",
+                          fill=TEXT_SEC, font=FONT_SMALL)
             y += row_h
 
     # ── Transactions frame ──────────────────────────────────────────────────
@@ -674,75 +631,65 @@ class App(tk.Tk):
         frm = self._frames["transactions"]
 
         toolbar = tk.Frame(frm, bg=BG)
-        toolbar.pack(fill="x", padx=20, pady=(16, 8))
+        toolbar.pack(fill="x", padx=40, pady=(8, 10))
 
-        # Filter
         tk.Label(toolbar, text="Category", bg=BG, fg=TEXT_SEC,
                  font=FONT_SMALL).pack(side="left")
         self._filter_var = tk.StringVar(value="All")
         self._filter_menu = ttk.Combobox(
-            toolbar, textvariable=self._filter_var,
-            state="readonly", width=18,
-            style="Dark.TCombobox", font=FONT_BODY,
-        )
+            toolbar, textvariable=self._filter_var, state="readonly",
+            width=20, style="Light.TCombobox", font=FONT_BODY)
         self._filter_menu["values"] = ["All"]
-        self._filter_menu.pack(side="left", padx=(6, 16))
+        self._filter_menu.pack(side="left", padx=(8, 14))
         self._filter_menu.bind("<<ComboboxSelected>>", lambda _: self._render_table())
 
         self._count_label = tk.Label(toolbar, text="", bg=BG,
                                       fg=TEXT_DIM, font=FONT_SMALL)
         self._count_label.pack(side="left")
 
-        self._btn_recategorise = styled_button(
-            toolbar, "✎  Re-categorise",
-            self._recategorise_selected,
-            style="purple", state="disabled",
-        )
+        self._btn_recategorise = PillButton(
+            toolbar, "Re-categorise", self._recategorise_selected,
+            state="disabled")
         self._btn_recategorise.pack(side="right")
 
-        tk.Label(frm,
-                 text="Double-click or right-click a row to reassign its category",
+        tk.Label(frm, text="Double-click or right-click a row to reassign its category.",
                  bg=BG, fg=TEXT_DIM, font=FONT_SMALL, anchor="w",
-                 ).pack(fill="x", padx=20, pady=(0, 6))
+                 ).pack(fill="x", padx=40, pady=(0, 8))
 
         cols = ("Date", "Description", "Category", "Amount")
+        card = tk.Frame(frm, bg=WHITE, padx=12, pady=10)
+        card.pack(fill="both", expand=True, padx=40, pady=(0, 32))
 
-        tree_wrap = tk.Frame(frm, bg=BG)
-        tree_wrap.pack(fill="both", expand=True, padx=20, pady=(0, 16))
-
-        self._tree = ttk.Treeview(tree_wrap, columns=cols, show="headings",
-                                   selectmode="extended", style="Dark.Treeview")
-
-        widths = {"Date": 100, "Description": 360, "Category": 150, "Amount": 100}
+        self._tree = ttk.Treeview(card, columns=cols, show="headings",
+                                   selectmode="extended", style="Light.Treeview")
+        widths = {"Date": 100, "Description": 360, "Category": 160, "Amount": 100}
         for col in cols:
-            self._tree.heading(col, text=col)
-            self._tree.column(col, width=widths[col], anchor="e" if col == "Amount" else "w",
+            self._tree.heading(col, text=col, anchor="e" if col == "Amount" else "w")
+            self._tree.column(col, width=widths[col],
+                               anchor="e" if col == "Amount" else "w",
                                stretch=(col == "Description"))
 
-        vsb = ttk.Scrollbar(tree_wrap, orient="vertical",
-                             command=self._tree.yview,
-                             style="Dark.Vertical.TScrollbar")
+        vsb = ttk.Scrollbar(card, orient="vertical", command=self._tree.yview,
+                             style="Light.Vertical.TScrollbar")
         self._tree.configure(yscrollcommand=vsb.set)
         self._tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        # Row tags
-        self._tree.tag_configure("odd",         background=PANEL)
-        self._tree.tag_configure("even",        background=BG)
-        self._tree.tag_configure("manual_odd",  background="#2A2010")
-        self._tree.tag_configure("manual_even", background="#241E0E")
+        self._tree.tag_configure("odd",         background=ROW_ALT)
+        self._tree.tag_configure("even",        background=WHITE)
+        self._tree.tag_configure("manual_odd",  background=MANUAL_ROW)
+        self._tree.tag_configure("manual_even", background=MANUAL_ROW)
 
         self._tree.bind("<Double-1>",         self._on_double_click)
         self._tree.bind("<Button-2>",         self._on_right_click)
         self._tree.bind("<Button-3>",         self._on_right_click)
         self._tree.bind("<<TreeviewSelect>>", self._on_selection_change)
 
-        self._context_menu = tk.Menu(self, tearoff=0, bg=PANEL, fg=TEXT_PRI,
+        self._context_menu = tk.Menu(self, tearoff=0, bg=WHITE, fg=TEXT_PRI,
                                       activebackground=ACCENT,
-                                      activeforeground="#FFFFFF",
-                                      font=FONT_BODY, bd=0,
-                                      relief="flat")
-        self._context_menu.add_command(label="  ✎  Re-categorise…",
+                                      activeforeground=WHITE,
+                                      font=FONT_BODY, bd=0, relief="flat")
+        self._context_menu.add_command(label="  Re-categorise…",
                                         command=self._recategorise_selected)
 
     def _render_table(self):
@@ -773,39 +720,36 @@ class App(tk.Tk):
         frm = self._frames["rules"]
 
         toolbar = tk.Frame(frm, bg=BG)
-        toolbar.pack(fill="x", padx=20, pady=(16, 8))
-        tk.Label(toolbar, text="Rules are applied on every import — most-specific match wins.",
-                 bg=BG, fg=TEXT_SEC, font=FONT_SMALL).pack(side="left")
-        self._btn_delete_rule = styled_button(
-            toolbar, "🗑  Delete Rule",
-            self._delete_selected_rule,
-            style="danger", state="disabled",
-        )
+        toolbar.pack(fill="x", padx=40, pady=(8, 4))
+        tk.Label(toolbar, textvariable=self._learned_var, bg=BG, fg=TEXT_SEC,
+                 font=FONT_SMALL).pack(side="left")
+        self._btn_delete_rule = PillButton(
+            toolbar, "Delete rule", self._delete_selected_rule,
+            style="danger", state="disabled")
         self._btn_delete_rule.pack(side="right")
 
-        tk.Label(frm, text=f"  {LEARNED_RULES_PATH}",
-                 bg=BG, fg=TEXT_DIM, font=FONT_MONO, anchor="w").pack(fill="x", padx=16, pady=(0, 6))
+        tk.Label(frm, text=str(LEARNED_RULES_PATH), bg=BG, fg=TEXT_DIM,
+                 font=FONT_MONO, anchor="w").pack(fill="x", padx=40, pady=(0, 10))
 
-        tree_wrap = tk.Frame(frm, bg=BG)
-        tree_wrap.pack(fill="both", expand=True, padx=20, pady=(0, 16))
+        card = tk.Frame(frm, bg=WHITE, padx=12, pady=10)
+        card.pack(fill="both", expand=True, padx=40, pady=(0, 32))
 
         cols = ("Keyword / Description", "Category")
-        self._rules_tree = ttk.Treeview(tree_wrap, columns=cols, show="headings",
-                                         selectmode="browse", style="Dark.Treeview")
-        self._rules_tree.heading("Keyword / Description", text="Keyword / Description")
-        self._rules_tree.heading("Category", text="Category")
+        self._rules_tree = ttk.Treeview(card, columns=cols, show="headings",
+                                         selectmode="browse", style="Light.Treeview")
+        self._rules_tree.heading("Keyword / Description", text="Keyword / Description", anchor="w")
+        self._rules_tree.heading("Category", text="Category", anchor="w")
         self._rules_tree.column("Keyword / Description", width=520, stretch=True)
         self._rules_tree.column("Category", width=180, anchor="w")
 
-        vsb2 = ttk.Scrollbar(tree_wrap, orient="vertical",
-                              command=self._rules_tree.yview,
-                              style="Dark.Vertical.TScrollbar")
+        vsb2 = ttk.Scrollbar(card, orient="vertical", command=self._rules_tree.yview,
+                              style="Light.Vertical.TScrollbar")
         self._rules_tree.configure(yscrollcommand=vsb2.set)
         self._rules_tree.pack(side="left", fill="both", expand=True)
         vsb2.pack(side="right", fill="y")
 
-        self._rules_tree.tag_configure("odd",  background=PANEL)
-        self._rules_tree.tag_configure("even", background=BG)
+        self._rules_tree.tag_configure("odd",  background=ROW_ALT)
+        self._rules_tree.tag_configure("even", background=WHITE)
         self._rules_tree.bind("<<TreeviewSelect>>",
                                lambda _: self._btn_delete_rule.config(
                                    state="normal" if self._rules_tree.selection() else "disabled"))
@@ -901,7 +845,9 @@ class App(tk.Tk):
 
     def _update_learned_label(self):
         n = len(self._learned)
-        self._learned_var.set(f"  {n} learned rule{'s' if n != 1 else ''}" if n else "")
+        self._learned_var.set(
+            f"{n} learned rule{'s' if n != 1 else ''} · applied on every import"
+            if n else "No learned rules yet — re-categorise a transaction to create one.")
 
     # ── Actions ─────────────────────────────────────────────────────────────
 
@@ -914,8 +860,8 @@ class App(tk.Tk):
             self._csv_path = path
             name = Path(path).name
             self._path_var.set(name)
-            # Reset the current view before processing the newly selected file.
             self._transactions = []
+            self._chart_data = []
             self._canvas.delete("all")
             for w in self._cards_row.winfo_children():
                 w.destroy()
@@ -923,7 +869,6 @@ class App(tk.Tk):
             self._btn_save.config(state="disabled")
             self._btn_recategorise.config(state="disabled")
 
-            # Automatically categorise as soon as a file is selected.
             self._status_var.set(f"Loading {name}…")
             self._run()
 
@@ -947,8 +892,8 @@ class App(tk.Tk):
 
     def _on_done(self):
         n = len(self._transactions)
-        self._status_var.set(f"{n} transactions categorised")
-        self._btn_run.config(state="normal", text="▶  Categorise")
+        self._status_var.set(f"{Path(self._csv_path).name} · {n} transactions categorised")
+        self._btn_run.config(state="normal", text="Categorise")
         self._btn_save.config(state="normal")
 
         cats = sorted({tx["Category"] for tx in self._transactions},
@@ -962,7 +907,7 @@ class App(tk.Tk):
 
     def _on_error(self, msg):
         self._status_var.set("Error processing file")
-        self._btn_run.config(state="normal", text="▶  Categorise")
+        self._btn_run.config(state="normal", text="Categorise")
         messagebox.showerror("Error", f"Could not process file:\n\n{msg}")
 
     def _save(self):

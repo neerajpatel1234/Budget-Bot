@@ -1,5 +1,7 @@
 """
 Spending Line Chart — last 8 months, multi-category trend
+Apple-style light theme (matches spending_categoriser_gui.py)
+
 Searches all year subfolders inside the given root for *_categorised.csv files,
 picks the 8 most recent months, and plots a styled dashboard.
 
@@ -20,6 +22,7 @@ try:
     matplotlib.use("TkAgg")
     import matplotlib.pyplot as plt
     import matplotlib.ticker as ticker
+    from matplotlib.patches import FancyBboxPatch
     import numpy as np
 except ImportError:
     sys.exit("matplotlib is required.  Run:  pip install matplotlib")
@@ -27,29 +30,36 @@ except ImportError:
 # ── Default root folder ──────────────────────────────────────────────────────
 DEFAULT_ROOT = Path("/Users/neerajpatel/Finance/Credit Card Statements")
 
-# ── Design tokens ────────────────────────────────────────────────────────────
-BG       = "#0F1117"
-PANEL    = "#171B26"
-BORDER   = "#252A3A"
-SURFACE  = "#1E2235"
-TEXT_PRI = "#E8EAF0"
-TEXT_SEC = "#8892A4"
-TEXT_DIM = "#3A4155"
-GRID_COL = "#1C2133"
+# ── Design tokens (apple.com light) ──────────────────────────────────────────
+WHITE        = "#FFFFFF"
+BG           = "#F5F5F7"
+BORDER       = "#D2D2D7"
+HAIRLINE     = "#E8E8ED"
+TEXT_PRI     = "#1D1D1F"
+TEXT_SEC     = "#6E6E73"
+TEXT_DIM     = "#86868B"
+ACCENT       = "#0071E3"
+ACCENT_TINT  = "#E8F1FD"
+GRID_COL     = "#EDEDF0"
+
+# Prefer the system font on each platform, fall back gracefully
+plt.rcParams["font.family"] = "sans-serif"
+plt.rcParams["font.sans-serif"] = ["SF Pro Text", "Helvetica Neue", "Segoe UI",
+                                   "Helvetica", "Arial", "DejaVu Sans"]
 
 CAT_COLOURS = {
-    "Total Spending":       "#4F8EF7",
-    "Groceries":            "#2ECC71",
-    "Dining / Eating Out":  "#E74C3C",
-    "Transport":            "#3498DB",
-    "Fuel":                 "#1ABC9C",
-    "Bills & Utilities":    "#9B59B6",
-    "Shopping":             "#F39C12",
-    "Entertainment":        "#E91E8C",
-    "Health & Medical":     "#FF5252",
-    "Travel":               "#00BCD4",
-    "Income":               "#27AE60",
-    "Other":                "#78909C",
+    "Total Spending":       "#0071E3",
+    "Groceries":            "#34C759",
+    "Dining / Eating Out":  "#FF3B30",
+    "Transport":            "#007AFF",
+    "Fuel":                 "#32ADE6",
+    "Bills & Utilities":    "#AF52DE",
+    "Shopping":             "#FF9500",
+    "Entertainment":        "#FF2D55",
+    "Health & Medical":     "#A2845E",
+    "Travel":               "#5856D6",
+    "Income":               "#248A3D",
+    "Other":                "#8E8E93",
 }
 
 MONTH_ORDER = ["Jan","Feb","Mar","Apr","May","Jun",
@@ -116,13 +126,27 @@ def hex_to_rgba(hex_color: str, alpha: float):
     return (r, g, b, alpha)
 
 
+def draw_card(fig, left, bottom, width, height, radius_in=0.18):
+    """Rounded white card behind a panel (figure coordinates)."""
+    fw, fh = fig.get_size_inches()
+    card = FancyBboxPatch(
+        (left, bottom), width, height,
+        boxstyle=f"round,pad=0,rounding_size={radius_in / fw}",
+        mutation_aspect=fw / fh,
+        transform=fig.transFigure,
+        facecolor=WHITE, edgecolor="none", zorder=0)
+    fig.add_artist(card)
+
+
 def draw_panel(fig, left, bottom, width, height,
                cat, colour, months, x, y_vals, total_label):
     """Draw one category panel — shared by Total Spending and every category."""
-    ax = fig.add_axes([left, bottom, width, height])
-    ax.set_facecolor(PANEL)
+    draw_card(fig, left, bottom, width, height)
 
-    rgba_fill = hex_to_rgba(colour, 0.10)
+    pad_x, pad_y = 0.012, 0.012
+    ax = fig.add_axes([left + pad_x, bottom + pad_y * 1.4,
+                       width - 2 * pad_x - 0.004, height - pad_y * 2.2])
+    ax.set_facecolor("none")
 
     ax.yaxis.grid(True, color=GRID_COL, linewidth=0.8, linestyle="-", zorder=0)
     ax.xaxis.grid(False)
@@ -131,31 +155,35 @@ def draw_panel(fig, left, bottom, width, height,
     verts_x = np.concatenate([[x[0]], x, [x[-1]]])
     verts_y = np.concatenate([[0], y_vals, [0]])
     poly = plt.Polygon(list(zip(verts_x, verts_y)),
-                       closed=True, facecolor=rgba_fill, edgecolor="none", zorder=1)
+                       closed=True, facecolor=hex_to_rgba(colour, 0.12),
+                       edgecolor="none", zorder=1)
     ax.add_patch(poly)
 
-    ax.plot(x, y_vals, color=colour, linewidth=2.0,
+    ax.plot(x, y_vals, color=colour, linewidth=2.2,
             solid_capstyle="round", zorder=3)
-    ax.scatter(x, y_vals, s=38, zorder=4,
-               facecolors=PANEL, edgecolors=colour, linewidths=1.8)
+    ax.scatter(x, y_vals, s=40, zorder=4,
+               facecolors=WHITE, edgecolors=colour, linewidths=2.0)
 
     y_max = y_vals.max() if y_vals.max() > 0 else 1
     for xi, yi in zip(x, y_vals):
         if yi <= 0:
             continue
         ax.text(xi, yi + y_max * 0.09, f"${yi:,.0f}",
-                ha="center", va="bottom", fontsize=7,
-                color=colour, fontweight="bold", zorder=5)
+                ha="center", va="bottom", fontsize=7.5,
+                color=TEXT_PRI, fontweight="semibold", zorder=5)
 
-    ax.text(0.012, 0.96, cat, transform=ax.transAxes,
-            fontsize=9, fontweight="bold", color=colour,
+    # Title: coloured dot + dark label, summary on the right
+    ax.text(0.0, 0.97, "●", transform=ax.transAxes, fontsize=8,
+            color=colour, va="top", ha="left", zorder=6)
+    ax.text(0.035, 0.97, cat, transform=ax.transAxes,
+            fontsize=10.5, fontweight="bold", color=TEXT_PRI,
             va="top", ha="left", zorder=6)
-    ax.text(0.988, 0.96, total_label, transform=ax.transAxes,
-            fontsize=7, color=TEXT_SEC, va="top", ha="right", zorder=6)
+    ax.text(1.0, 0.965, total_label, transform=ax.transAxes,
+            fontsize=7.5, color=TEXT_SEC, va="top", ha="right", zorder=6)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(months, fontsize=8, color=TEXT_SEC, fontfamily="monospace")
-    ax.tick_params(axis="x", length=0, pad=4)
+    ax.set_xticklabels(months, fontsize=8, color=TEXT_SEC)
+    ax.tick_params(axis="x", length=0, pad=5)
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"${v:,.0f}"))
     ax.tick_params(axis="y", labelsize=7, colors=TEXT_DIM, length=0, pad=3)
@@ -165,10 +193,13 @@ def draw_panel(fig, left, bottom, width, height,
     ax.set_ylim(0, y_max * 1.38)
     ax.set_xlim(-0.5, len(months) - 0.5)
 
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_color(BORDER)
-        spine.set_linewidth(0.8)
+    for side, spine in ax.spines.items():
+        if side == "bottom":
+            spine.set_visible(True)
+            spine.set_color(BORDER)
+            spine.set_linewidth(0.8)
+        else:
+            spine.set_visible(False)
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -248,44 +279,50 @@ def main():
     ncols = 3
     nrows = (len(all_panels) + ncols - 1) // ncols
 
-    row_height_in    = 3.0
-    header_height_in = 0.75
-    footer_height_in = 0.40
+    row_height_in    = 3.1
+    header_height_in = 0.95
+    footer_height_in = 0.45
 
     fig_height = header_height_in + nrows * row_height_in + footer_height_in + 0.3
 
     fig = plt.figure(figsize=(15, fig_height), facecolor=BG)
+    try:
+        fig.canvas.manager.set_window_title("Spending Dashboard")
+    except Exception:
+        pass
 
-    # ── Header ───────────────────────────────────────────────────────────────
+    # ── Header (apple.com style: white bar, big title, hairline) ─────────────
     header_frac = header_height_in / fig_height
     hax = fig.add_axes([0, 1 - header_frac, 1, header_frac])
-    hax.set_facecolor(PANEL)
+    hax.set_facecolor(WHITE)
     hax.set_xlim(0, 1); hax.set_ylim(0, 1)
-    hax.axis("off")
-    hax.axhline(y=0, color="#4F8EF7", linewidth=2.5, xmin=0, xmax=1)
-    hax.text(0.022, 0.62, "◈  Spending Dashboard",
-             color=TEXT_PRI, fontsize=14, fontweight="bold",
+    hax.set_xticks([]); hax.set_yticks([])
+    for s in hax.spines.values():
+        s.set_visible(False)
+    hax.axhline(y=0, color=BORDER, linewidth=1.0)
+    hax.text(0.022, 0.64, "Spending Dashboard",
+             color=TEXT_PRI, fontsize=20, fontweight="bold",
              va="center", transform=hax.transAxes)
-    hax.text(0.022, 0.20, "MONTHLY CATEGORY TRENDS · NZD",
-             color=TEXT_SEC, fontsize=8, va="center",
-             transform=hax.transAxes, fontfamily="monospace")
+    hax.text(0.022, 0.25, "Monthly category trends · NZD",
+             color=TEXT_SEC, fontsize=10, va="center",
+             transform=hax.transAxes)
     if months:
         hax.text(0.978, 0.50, f"  {months[0]} – {months[-1]}  ",
-                 color="#4F8EF7", fontsize=8, ha="right", va="center",
-                 transform=hax.transAxes,
-                 bbox=dict(facecolor=SURFACE, edgecolor="#4F8EF7",
-                           linewidth=0.8, boxstyle="round,pad=0.4"))
+                 color=ACCENT, fontsize=9.5, fontweight="semibold",
+                 ha="right", va="center", transform=hax.transAxes,
+                 bbox=dict(facecolor=ACCENT_TINT, edgecolor="none",
+                           boxstyle="round,pad=0.5,rounding_size=1.0"))
 
     # ── Grid coordinates ─────────────────────────────────────────────────────
     footer_frac  = footer_height_in / fig_height
-    plot_top     = 1 - header_frac - 0.01
+    plot_top     = 1 - header_frac - 0.012
     plot_bottom  = footer_frac + 0.01
     plot_height  = plot_top - plot_bottom
 
-    left_margin  = 0.04
-    right_margin = 0.02
-    h_gap        = 0.035
-    v_gap        = 0.018
+    left_margin  = 0.022
+    right_margin = 0.022
+    h_gap        = 0.014
+    v_gap        = 0.014
 
     col_w   = (1 - left_margin - right_margin - h_gap * (ncols - 1)) / ncols
     row_h   = plot_height / nrows
@@ -298,7 +335,7 @@ def main():
         left   = left_margin + col * (col_w + h_gap)
         bottom = plot_top - (row + 1) * row_h + v_gap * 0.5
 
-        colour  = CAT_COLOURS.get(cat, "#78909C")
+        colour  = CAT_COLOURS.get(cat, "#8E8E93")
         y_vals  = np.array([month_data[m].get(cat, 0) for m in months])
         total   = sum(month_data[m].get(cat, 0) for m in months)
 
@@ -306,17 +343,17 @@ def main():
         if cat == TOTAL_KEY:
             total_label = f"Avg ${np.mean(y_vals):,.0f}/mo  ·  Total ${total:,.0f}"
         else:
-            total_label = f"Avg  ${avg:,.0f}/mo"
+            total_label = f"Avg ${avg:,.0f}/mo"
 
         draw_panel(fig, left, bottom, col_w, row_h - v_gap,
                    cat, colour, months, x, y_vals, total_label)
 
     # ── Footer ───────────────────────────────────────────────────────────────
-    fig.text(0.022, 0.012, f"Source: {root}",
-             fontsize=7.5, color=TEXT_DIM, fontfamily="monospace")
-    fig.text(0.978, 0.012,
+    fig.text(0.022, 0.014, f"Source: {root}",
+             fontsize=8, color=TEXT_DIM)
+    fig.text(0.978, 0.014,
              f"Last 8 months  ·  {len(active_cats)} categories",
-             fontsize=7.5, color=TEXT_DIM, ha="right", fontfamily="monospace")
+             fontsize=8, color=TEXT_DIM, ha="right")
 
     plt.show()
 
